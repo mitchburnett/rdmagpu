@@ -87,7 +87,8 @@ const xb_hdr_t xb_hdr_template = {
   .xid = 0,//{ 0 },
   .fid = 0,//{ 0 },
   .cal = 26729, //{0xde, 0xad, 0xbe, 0xef, 0x21, 0x34, 0x65},
-  .mcnt = 0//{0x0}
+  .mcnt = 0,//{0x0}
+  .padding = "hello world\n"
 };
 
 typedef struct XB_UDPStruct {

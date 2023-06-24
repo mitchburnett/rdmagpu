@@ -278,7 +278,7 @@ int main() {
        *   -size of the incoming packets
        */
 
-      printf("message %ld received size %d\n", wc.wr_id, wc.byte_len);
+      //printf("message %ld received size %d\n", wc.wr_id, wc.byte_len);
 
       sg_entry.addr = (uint64_t)buf + wc.wr_id*ENTRY_SIZE;
 
@@ -287,7 +287,7 @@ int main() {
       //
       // To avoid weird ness with c promotion of char to signed int need to
       // explicit specify 'unsigned char'
-      printf("mcnt: %d\n", *((unsigned char *)sg_entry.addr + 0x63)); 
+      //printf("mcnt: %d\n", *((unsigned char *)sg_entry.addr + 0x63));
 
       pktcount++;
       wr.wr_id = wc.wr_id;
@@ -302,7 +302,7 @@ int main() {
     }
   }
 
-  printf("We got our 4608 packets\n");
+  //printf("We got our 4608 packets\n");
 
   char* hostbuf= malloc(buf_size);
 
