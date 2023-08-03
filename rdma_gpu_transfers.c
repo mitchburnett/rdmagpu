@@ -132,8 +132,6 @@ int main() {
   void *buf = NULL;
   //buf = malloc(buf_size);
   cudaSetDevice(0);
-  //cudaError_t cudaStatus = cudaHostRegister((void **) &buf, buf_size);
-  //cudaError_t cudaStatus = cudaMalloc((void **) &buf, buf_size);
   cudaError_t cudaStatus = cudaMallocHost((void **) &buf, buf_size);
   if (cudaStatus != cudaSuccess) {
     fprintf(stderr, "cudaMalloc failed: %s\n", cudaGetErrorString(cudaStatus));
@@ -281,13 +279,6 @@ int main() {
       //printf("message %ld received size %d\n", wc.wr_id, wc.byte_len);
 
       sg_entry.addr = (uint64_t)buf + wc.wr_id*ENTRY_SIZE;
-
-      // Need to create a pointer from the uint64_t address in the sg_entry address
-      // this isn't a pointer but the value of the address 
-      //
-      // To avoid weird ness with c promotion of char to signed int need to
-      // explicit specify 'unsigned char'
-      //printf("mcnt: %d\n", *((unsigned char *)sg_entry.addr + 0x63));
 
       pktcount++;
       wr.wr_id = wc.wr_id;
