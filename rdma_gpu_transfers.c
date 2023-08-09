@@ -25,6 +25,7 @@
 #include <string.h>
 
 #include <infiniband/verbs.h>
+#include <cuda.h>
 #include <cuda_runtime.h>
 
 #define PORT_NUM 1
@@ -35,8 +36,8 @@
  * you may need to change the MAC address to suit the network port MAC */
 //#define DEST_MAC {0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
 //#define DEST_MAC {0x0c, 0x42, 0xa1, 0xa3, 0x99, 0x2e}
-//#define DEST_MAC {0x0c, 0x42, 0xa1, 0xa3, 0x98, 0xfe} // m87, adapter index 0 (dev_list[0])
-#define DEST_MAC  0x04, 0x3f, 0x72, 0xa2, 0xcf, 0xea // xb-3, adapter index 2 (dev_list[2])
+#define DEST_MAC {0x0c, 0x42, 0xa1, 0xa3, 0x98, 0xfe} // m87, adapter index 0 (dev_list[0])
+//#define DEST_MAC  0x04, 0x3f, 0x72, 0xa2, 0xcf, 0xea // xb-3, adapter index 2 (dev_list[2])
 //#define DEST_MAC {0x0c, 0x42, 0xa1, 0xa3, 0x9a, 0x06}
 
 int main() {
@@ -55,7 +56,8 @@ int main() {
 
   /* 1. Get Device */
   // You may change the code in case you have a setup with more than one adapter installed.
-  ib_dev = dev_list[2];
+  //ib_dev = dev_list[2];
+  ib_dev = dev_list[0];
   if (!ib_dev) {
     fprintf(stderr, "IB device not found\n");
     exit(1);
@@ -148,23 +150,46 @@ int main() {
   }
 
   /* 9. Allocate Memory */
-  int buf_size = ENTRY_SIZE*RQ_NUM_DESC; /* maximum size of data to be accessed by hardware */
+  size_t buf_size = ENTRY_SIZE*RQ_NUM_DESC; /* maximum size of data to be accessed by hardware */
   void *buf = NULL;
-  //buf = malloc(buf_size);
+
   cudaSetDevice(0);
-  cudaError_t cudaStatus = cudaMallocHost((void **) &buf, buf_size);
+
+  //uint32_t PAGE_SIZE = 4096;
+  uint32_t PAGE_SIZE = 65536;
+  uint32_t align = PAGE_SIZE;
+
+  size_t buf_size_pad = buf_size + align;
+  void* buf_pad = NULL;
+  cudaError_t cudaStatus = cudaMalloc((void **) &buf_pad, buf_size_pad);
   if (cudaStatus != cudaSuccess) {
     fprintf(stderr, "cudaMalloc failed: %s\n", cudaGetErrorString(cudaStatus));
     exit(1);
   }
+
+  buf = buf_pad;
   if (!buf) {
     fprintf(stderr, "Coudln't allocate memory\n");
     exit(1);
   }
 
+  // Align region to a gpu page
+  if (align && ((uintptr_t) buf) % align) {
+    buf += (align - (((uintptr_t) buf) % align));
+  }
+
+  // Set RDMA attribute on the memory
+  unsigned int flag = 1;
+  CUresult status = cuPointerSetAttribute(&flag, CU_POINTER_ATTRIBUTE_SYNC_MEMOPS, (uintptr_t) buf);
+  if (status != 0) {
+    fprintf(stderr, "Could not se SYNC MEMOP attribute, err %d", status);
+    exit(1);
+  }
+
   /* 10. Register the user memory so it can be accessed by the HW directly */
   struct ibv_mr *mr;
-  mr = ibv_reg_mr(pd, buf, buf_size, IBV_ACCESS_LOCAL_WRITE);
+  //mr = ibv_reg_mr(pd, buf, buf_size, IBV_ACCESS_LOCAL_WRITE);
+  mr = ibv_reg_mr(pd, buf, buf_size_pad, IBV_ACCESS_LOCAL_WRITE); // register the padded size(?)
   if (!mr) {
     int errsv = errno;
     fprintf(stderr, "Couldn't register MR. Error: %s\n", strerror(errsv));
